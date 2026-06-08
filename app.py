@@ -1,59 +1,56 @@
 import streamlit as st
 from google import genai
 from google.genai import types
+import random
 import warnings
 
 # Pengaturan Global
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
 
-# ==============================================================================
-# 1. AUTHENTICATION & LOGIN FLOW
-# ==============================================================================
-# Fungsi login ini memanggil provider 'google' secara eksplisit 
-# untuk mencegah error 'Missing provider'
-def perform_login():
-    st.login("google")
+# --- 1. SISTEM LOGIN USERNAME (STABIL) ---
+# Anda bisa mengganti username & password di bawah atau melalui st.secrets
+USERNAME_VALID = "admin"
+PASSWORD_VALID = "rahasia123"
 
-# Proteksi Login: Jika belum login, tampilkan layar login saja
-if not st.user.is_logged_in:
-    st.write("")
-    with st.container(border=True):
+def check_login():
+    if "is_logged_in" not in st.session_state:
+        st.session_state.is_logged_in = False
+
+    if not st.session_state.is_logged_in:
         st.markdown("## 🔮 Universal AI Agent Pro")
-        st.markdown("<p style='text-align: center; color: gray;'>Sistem Terproteksi Google OAuth</p>", unsafe_allow_html=True)
-        st.warning("🔒 Harap login untuk mengakses aplikasi.")
+        username = st.text_input("Username:")
+        password = st.text_input("Password:", type="password")
         
-        # Tombol login menggunakan callback fungsi di atas
-        st.button("Log in with Google 🌐", on_click=perform_login, type="primary", use_container_width=True)
-    st.stop() # Menghentikan eksekusi kode di bawah jika belum login
+        if st.button("Masuk"):
+            if username == USERNAME_VALID and password == PASSWORD_VALID:
+                st.session_state.is_logged_in = True
+                st.rerun()
+            else:
+                st.error("Username atau Password salah!")
+        st.stop()
 
-# --- JIKA LOLOS LOGIN ---
-# Bar Navigasi Profil
-email_aktif = st.user.email.strip().lower()
-nama_aktif = st.user.name if hasattr(st.user, 'name') else "User"
+check_login()
 
+# --- 2. FITUR LAIN (TETAP ADA) ---
 col_p, col_n = st.columns([4, 1])
 with col_p:
-    st.write(f"👤 **{nama_aktif}** | `{email_aktif}`")
+    st.write("👤 **Mode Admin Aktif**")
 with col_n:
     if st.button("Keluar 🚪"):
-        st.logout()
+        st.session_state.is_logged_in = False
         st.rerun()
 
 st.markdown("---")
 
-# ==============================================================================
-# 2. LOGIKA API ENGINE
-# ==============================================================================
+# --- 3. LOGIKA API KEY & ENGINE AI (TIDAK HILANG) ---
 def dapatkan_client():
-    # Mengambil API key dari Streamlit Secrets
     if "gemini" in st.secrets and "gcp_api_keys" in st.secrets["gemini"]:
-        return genai.Client(api_key=st.secrets["gemini"]["gcp_api_keys"])
+        keys = st.secrets["gemini"]["gcp_api_keys"].strip().split("\n")
+        key_aktif = random.choice([k.strip() for k in keys if k.strip()])
+        return genai.Client(api_key=key_aktif)
     return None
 
-# ==============================================================================
-# 3. WORKSPACE UTAMA
-# ==============================================================================
 st.subheader("🚀 Ruang Kerja Agen")
 profesi = st.text_input("Profesi Ahli:", placeholder="Contoh: Database Administrator")
 tugas = st.text_area("Tugas Anda:", placeholder="Tuliskan tugas di sini...")
@@ -81,6 +78,5 @@ if st.button("Jalankan Mesin ⚡", type="primary"):
     else:
         st.warning("Mohon isi semua kolom.")
 
-# Menampilkan hasil jika ada
 if "hasil" in st.session_state:
     st.markdown(st.session_state.hasil)
