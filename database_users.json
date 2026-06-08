@@ -1,0 +1,14 @@
+{
+    "handoyoyy1@gmail.com": {
+        "nama": "Miftada Handoyo (Admin)",
+        "status": "Aktif",
+        "nominal_transfer": 0,
+        "kode_aktivasi": "ADMIN_ACCESS"
+    },
+    "mifadayanuar1@gmail.com": {
+        "nama": "mifada",
+        "status": "Aktif",
+        "nominal_transfer": 49344,
+        "kode_aktivasi": "PREM-760551"
+    }
+}
