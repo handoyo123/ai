@@ -285,11 +285,13 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
 # 5. HALAMAN UTAMA WORKSPACE & KONTROL AKSES USER / ADMIN
 # ==============================================================================
 
-# --- STRUKTUR LAYOUT JIKA YANG MASUK ADALAH ADMIN ---
+# ------------------------------------------------------------------------------
+# JALUR A: STRUKTUR LAYOUT KHUSUS ADMIN (MENGGUNAKAN 3 TAB LENGKAP)
+# ------------------------------------------------------------------------------
 if email_aktif == EMAIL_ADMIN:
     tab_workspace, tab_settings, tab_admin = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Konfigurasi API", "👑 Dashboard Admin"])
     
-    # TAB 1: WORKSPACE ADMIN
+    # --- ISI TAB 1: WORKSPACE ADMIN ---
     with tab_workspace:
         st.write("")
         with st.container(border=True):
@@ -347,18 +349,18 @@ if email_aktif == EMAIL_ADMIN:
                 with col_txt:
                     st.download_button(label="📄 Unduh Teks Mentah (.txt) Bersih", data=dokumen_murni_unduhan, file_name=f"Clean_{profesi_user.replace(' ', '_')}.txt", mime="text/plain", use_container_width=True, key="dl_txt_adm")
 
-    # TAB 2: SYSTEM CONFIG ADMIN
+    # --- ISI TAB 2: SYSTEM CONFIG ADMIN ---
     with tab_settings:
         st.write("")
         st.markdown("### ⚙️ Keseimbangan Token Pool")
         keys_aktif = [k for k in muat_api_keys() if "Your" not in k and "Disini" not in k]
         st.metric(label="Jumlah Kunci Cadangan API Aktif", value=len(keys_aktif))
 
-    # TAB 3: CONTROL PANEL ADMIN
+    # --- ISI TAB 3: CONTROL PANEL ADMIN ---
     with tab_admin:
         st.write("")
         st.markdown("### 👑 Panel Manajemen Aktivasi Manual")
-        if st.button("🔄 Refresh Data Pengajuan Masuk", use_container_width=True):
+        if st.button("🔄 Refresh Data Pengajuan Masuk", use_container_width=True, key="ref_adm_btn"):
             st.session_state.db_users = muat_database_kv()
             st.rerun()
             
@@ -389,10 +391,12 @@ if email_aktif == EMAIL_ADMIN:
         st.write("")
         st.markdown("---")
         st.markdown("### 🔍 Inspektur Data Mentah (Mode Dev/Admin)")
-        if st.button("Lihat Seluruh Isi DB Murni 📂", use_container_width=True):
+        if st.button("Lihat Seluruh Isi DB Murni 📂", use_container_width=True, key="insp_db_btn"):
             st.json(muat_database_kv())
 
-# --- STRUKTUR LAYOUT MURNI JIKA YANG MASUK ADALAH USER BIASA (TANPA SYSTEM TAB) ---
+# ------------------------------------------------------------------------------
+# JALUR B: LAYOUT USER BIASA (MURNI DIRECT PAGE TANPA PANGGIL ST.TABS SAMA SEKALI)
+# ------------------------------------------------------------------------------
 else:
     st.write("")
     with st.container(border=True):
