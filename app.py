@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # ==============================================================================
-# 1. DATABASE CONFIG & GOOGLE AUTH ENFORCEMENT
+# 1. DATABASE CONFIG & PROSES AUTENTIKASI GOOGLE OAUTH
 # ==============================================================================
 EMAIL_ADMIN = "handoyoyy1@gmail.com"
 NAMA_FILE_KEY = "api_keys.txt"
@@ -25,7 +25,7 @@ def muat_database_kv():
                 EMAIL_ADMIN: {
                     "nama": "Miftada Handoyo (Admin)",
                     "status": "Aktif", 
-                    "nominal_transfer": 0, \
+                    "nominal_transfer": 0, 
                     "kode_aktivasi": "ADMIN_ACCESS"
                 }
             }
@@ -41,7 +41,7 @@ def muat_database_kv():
                 EMAIL_ADMIN: {
                     "nama": "Miftada Handoyo (Admin)",
                     "status": "Aktif", 
-                    "nominal_transfer": 0, \
+                    "nominal_transfer": 0, 
                     "kode_aktivasi": "ADMIN_ACCESS"
                 }
             }
@@ -61,8 +61,7 @@ def simpan_database_kv(data_db):
         with open(NAMA_FILE_DB, "w") as f:
             json.dump(data_db, f, indent=4)
 
-# --- PROSES DETEKSI OTOMATIS LOGIN GOOGLE ---
-# Cek apakah fitur deteksi user Streamlit tersedia
+# --- PROTEKSI GOOGLE AUTH OTOMATIS BROWSER ---
 if hasattr(st, "experimental_user"):
     user_google = st.experimental_user
 elif hasattr(st, "user"):
@@ -72,25 +71,25 @@ else:
 
 st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
 
-# Jika user BELUM login via Google Auth, Streamlit akan memaksa menampilkan tombol "Log in with Google" resmi
+# Jika user BELUM login via Google Auth, paksa panggil st.login()
 if user_google is None or not user_google.get("is_logged_in", False):
     st.write("")
     with st.container(border=True):
         st.markdown("<h2 style='text-align: center;'>🔮 Universal AI Agent Pro</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Aplikasi ini aman terlindungi oleh Google OAuth</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Aplikasi Terlindungi Sistem Google OAuth Resmi</p>", unsafe_allow_html=True)
         st.markdown("---")
-        st.warning("🔒 Anda wajib masuk menggunakan akun Google Anda untuk mendeteksi hak akses (Admin/Pelanggan).")
-        st.write("Silakan klik tombol **Log in with Google** yang muncul di pojok kanan atas atau tombol otentikasi bawaan server server.")
+        st.warning("🔒 Anda wajib masuk menggunakan akun Google untuk memverifikasi hak akses aplikasi.")
+        st.write("Silakan klik tombol login resmi di bawah untuk melanjutkan.")
         
-        # Perintah ke server Streamlit untuk memicu form login Google resmi bawaan browser
+        # Memicu proses handshake ke Google Auth Server
         st.login()
     st.stop()
 
-# JIKA LOLOS, AMBIL DATA ASLI DARI GOOGLE BROWSER USER
+# JIKA LOLOS LOGIN, AMBIL IDENTITAS ASLI DARI GOOGLE
 email_aktif = user_google.get("email", "").strip().lower()
 nama_aktif = user_google.get("name", "User Pelanggan")
 
-# Sinkronisasi otomatis ke Database KV saat user baru pertama kali masuk via Google
+# Sinkronisasi otomatis ke database internal
 st.session_state.db_users = muat_database_kv()
 if email_aktif not in st.session_state.db_users:
     db_sekarang = muat_database_kv()
@@ -106,7 +105,7 @@ if email_aktif not in st.session_state.db_users:
 
 status_user = st.session_state.db_users[email_aktif]["status"]
 
-# Tampilan Header Akun Terdeteksi
+# Bar navigasi atas
 col_profil, col_nav_out = st.columns([4, 1])
 with col_profil:
     st.write(f"🌐 Terotentikasi Google: **{nama_aktif}** (`{email_aktif}`) | Status: **{status_user}**")
@@ -118,12 +117,14 @@ with col_nav_out:
 st.markdown("---")
 
 # ==============================================================================
-# 2. FUNGSI UTAMA ENGINE AI & FILTER DOKUMEN
+# 2. ENGINE ENGINE AI & ATURAN ROTASI TOKEN POOL
 # ==============================================================================
 def muat_api_keys():
     keys = []
-    keys_env = os.getenv("GCP_API_KEYS")
-    if keys_env:
+    
+    # Membaca dari struktur Secrets terbaru [gemini][gcp_api_keys]
+    if "gemini" in st.secrets and "gcp_api_keys" in st.secrets["gemini"]:
+        keys_env = st.secrets["gemini"]["gcp_api_keys"]
         for baris in keys_env.strip().split("\n"):
             baris_bersih = baris.strip().replace('"', '').replace(',', '').replace('[', '').replace(']', '')
             if baris_bersih and not baris_bersih.startswith("#"):
@@ -131,6 +132,7 @@ def muat_api_keys():
         if keys:
             return keys
 
+    # Fallback jika ada cadangan file txt lokal
     if os.path.exists(NAMA_FILE_KEY):
         with open(NAMA_FILE_KEY, "r") as f:
             for baris in f:
@@ -187,7 +189,7 @@ def buat_file_docx(teks_markdown):
     return buffer
 
 # ==============================================================================
-# 3. HALAMAN LOCK SCREEN PEMBAYARAN (OTOMATIS DILEWATI OLEH ADMIN)
+# 3. LOCK SCREEN SCREEN PEMBAYARAN PELANGGAN BARU (ADMIN OTOMATIS JALAN)
 # ==============================================================================
 if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.title("🔒 Akses Layanan Premium Terkunci")
@@ -206,16 +208,15 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.stop()
 
 # ==============================================================================
-# 4. HALAMAN UTAMA WORKSPACE & KONTROL AKSES USER / ADMIN
+# 4. WORKSPACE CORE & PEMBAGIAN HAK LAYANAN (USER VS ADMIN DASHBOARD)
 # ==============================================================================
-
 if email_aktif == EMAIL_ADMIN:
     tab_workspace, tab_settings, tab_admin = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Konfigurasi API", "👑 Dashboard Admin"])
     
     with tab_workspace:
         st.write("")
         with st.container(border=True):
-            st.markdown("### ✨ Spesifikasi Kebutuhan Kerja")
+            st.markdown("### ✨ Spesifikasi Kebutuhan Kerja (Mode Admin)")
             profesi_user = st.text_input("Tentukan Peran Ahli / Profesi Spesialis Terfokus:", placeholder="Contoh: Senior Database Administrator", key="profesi_adm")
             tugas_user = st.text_area("Deskripsikan Masalah Teknis atau Tugas yang Harus Diselesaikan:", placeholder="Salin perintah pengerjaan berkas di sini...", height=150, key="tugas_adm")
             
