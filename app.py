@@ -17,29 +17,24 @@ st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout
 # ==============================================================================
 EMAIL_ADMIN = "handoyoyy1@gmail.com"
 
-# Fungsi Login dengan mekanisme Rerunning yang kuat
-def handle_login():
-    st.login()
-    st.rerun()
+# Fungsi Login yang dipanggil secara eksplisit
+def perform_login():
+    st.login("google")
 
-# Cek Login Status (Ini adalah kunci utama agar masuk ke aplikasi)
+# Proteksi Login (Wajib menggunakan st.user.is_logged_in)
 if not st.user.is_logged_in:
     st.write("")
     with st.container(border=True):
         st.markdown("## 🔮 Universal AI Agent Pro")
+        st.markdown("<p style='text-align: center; color: gray;'>Aplikasi Terlindungi Sistem Google OAuth Resmi</p>", unsafe_allow_html=True)
         st.warning("🔒 Aplikasi ini diproteksi oleh Google OAuth.")
-        # Tombol login memicu fungsi khusus untuk memastikan rerunning
-        #st.button("Log in with Google 🌐", on_click=handle_login, type="primary", use_container_width=True)
-        st.button("Log in with Google 🌐", on_click=lambda: st.login("google"), type="primary", use_container_width=True)
+        # Menggunakan tombol dengan callback perform_login
+        st.button("Log in with Google 🌐", on_click=perform_login, type="primary", use_container_width=True)
     st.stop()
 
 # --- JIKA LOLOS LOGIN ---
 email_aktif = st.user.email.strip().lower()
-nama_aktif = st.user.name or "User Pelanggan"
-
-# Inisialisasi Database User
-if "db_users" not in st.session_state:
-    st.session_state.db_users = {EMAIL_ADMIN: {"status": "Aktif", "nama": "Admin"}}
+nama_aktif = st.user.name if hasattr(st.user, 'name') else "User Pelanggan"
 
 # Bar Navigasi Profil
 col_p, col_n = st.columns([4, 1])
@@ -63,7 +58,7 @@ def dapatkan_client():
     return None
 
 # ==============================================================================
-# 3. WORKSPACE UTAMA (LOGIKA UTAMA)
+# 3. WORKSPACE UTAMA
 # ==============================================================================
 st.subheader("🚀 Ruang Kerja Agen")
 profesi = st.text_input("Profesi Ahli:", placeholder="Contoh: Database Administrator")
