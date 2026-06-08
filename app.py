@@ -8,11 +8,14 @@ import io
 import json
 import warnings
 
-# Menyembunyikan peringatan tidak penting dari library pendukung
+# Menyembunyikan peringatan dari library pendukung
 warnings.filterwarnings("ignore")
 
+# Pengaturan Konfigurasi Halaman Utama Streamlit
+st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
+
 # ==============================================================================
-# 1. DATABASE CONFIG & PROSES AUTENTIKASI GOOGLE OAUTH
+# 1. DATABASE CONFIG & AUTOMATIC AUTH CHECK
 # ==============================================================================
 EMAIL_ADMIN = "handoyoyy1@gmail.com"
 NAMA_FILE_KEY = "api_keys.txt"
@@ -61,35 +64,26 @@ def simpan_database_kv(data_db):
         with open(NAMA_FILE_DB, "w") as f:
             json.dump(data_db, f, indent=4)
 
-# --- PROTEKSI GOOGLE AUTH OTOMATIS BROWSER ---
-if hasattr(st, "experimental_user"):
-    user_google = st.experimental_user
-elif hasattr(st, "user"):
-    user_google = st.user
-else:
-    user_google = None
-
-st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
-
-# Jika user BELUM login via Google Auth, paksa panggil st.login()
-if user_google is None or not user_google.get("is_logged_in", False):
+# --- PROTEKSI UTAMA GOOGLE OAUTH BROWSER ---
+# Jika user belum login, tampilkan layar kunci halaman (Lock Screen)
+if not st.user.is_logged_in:
     st.write("")
     with st.container(border=True):
         st.markdown("<h2 style='text-align: center;'>🔮 Universal AI Agent Pro</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray;'>Aplikasi Terlindungi Sistem Google OAuth Resmi</p>", unsafe_allow_html=True)
         st.markdown("---")
         st.warning("🔒 Anda wajib masuk menggunakan akun Google untuk memverifikasi hak akses aplikasi.")
-        st.write("Silakan klik tombol login resmi di bawah untuk melanjutkan.")
+        st.write("Silakan klik tombol login resmi di bawah untuk mendeteksi profil email browser Anda.")
         
-        # Memicu proses handshake ke Google Auth Server
-        st.login()
+        # Menggunakan event handler on_click agar pemanggilan login stabil dan aman
+        st.button("Log in with Google 🌐", on_click=st.login, type="primary", use_container_width=True)
     st.stop()
 
-# JIKA LOLOS LOGIN, AMBIL IDENTITAS ASLI DARI GOOGLE
-email_aktif = user_google.get("email", "").strip().lower()
-nama_aktif = user_google.get("name", "User Pelanggan")
+# JIKA USER BERHASIL LOGIN, BACA IDENTITAS GOOGLE
+email_aktif = st.user.email.strip().lower()
+nama_aktif = st.user.name if st.user.name else "User Pelanggan"
 
-# Sinkronisasi otomatis ke database internal
+# Sinkronisasi otomatis ke database internal aplikasi
 st.session_state.db_users = muat_database_kv()
 if email_aktif not in st.session_state.db_users:
     db_sekarang = muat_database_kv()
@@ -105,7 +99,7 @@ if email_aktif not in st.session_state.db_users:
 
 status_user = st.session_state.db_users[email_aktif]["status"]
 
-# Bar navigasi atas
+# Bar Informasi Profil User Terdeteksi di Atas Workspace
 col_profil, col_nav_out = st.columns([4, 1])
 with col_profil:
     st.write(f"🌐 Terotentikasi Google: **{nama_aktif}** (`{email_aktif}`) | Status: **{status_user}**")
@@ -117,12 +111,12 @@ with col_nav_out:
 st.markdown("---")
 
 # ==============================================================================
-# 2. ENGINE ENGINE AI & ATURAN ROTASI TOKEN POOL
+# 2. LOGIKA ROTASI POOL API KEY & PARSER DOKUMEN
 # ==============================================================================
 def muat_api_keys():
     keys = []
     
-    # Membaca dari struktur Secrets terbaru [gemini][gcp_api_keys]
+    # Membaca dari struktur flat TOML [gemini][gcp_api_keys]
     if "gemini" in st.secrets and "gcp_api_keys" in st.secrets["gemini"]:
         keys_env = st.secrets["gemini"]["gcp_api_keys"]
         for baris in keys_env.strip().split("\n"):
@@ -132,7 +126,7 @@ def muat_api_keys():
         if keys:
             return keys
 
-    # Fallback jika ada cadangan file txt lokal
+    # Fallback jika ada cadangan data di file txt lokal
     if os.path.exists(NAMA_FILE_KEY):
         with open(NAMA_FILE_KEY, "r") as f:
             for baris in f:
@@ -189,7 +183,7 @@ def buat_file_docx(teks_markdown):
     return buffer
 
 # ==============================================================================
-# 3. LOCK SCREEN SCREEN PEMBAYARAN PELANGGAN BARU (ADMIN OTOMATIS JALAN)
+# 3. LOCK SCREEN LAYER PEMBAYARAN (OTOMATIS DILEWATI OLEH AKUN ADMIN)
 # ==============================================================================
 if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.title("🔒 Akses Layanan Premium Terkunci")
@@ -208,7 +202,7 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.stop()
 
 # ==============================================================================
-# 4. WORKSPACE CORE & PEMBAGIAN HAK LAYANAN (USER VS ADMIN DASHBOARD)
+# 4. DASHBOARD UTAMA WORKSPACE & KONTROL HAK AKSES ROLE
 # ==============================================================================
 if email_aktif == EMAIL_ADMIN:
     tab_workspace, tab_settings, tab_admin = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Konfigurasi API", "👑 Dashboard Admin"])
