@@ -61,10 +61,8 @@ def muat_database_kv():
 
 def simpan_database_kv(data_db):
     """Menyimpan pembaruan data user secara adaptif berdasarkan lokasi server."""
-    # Jika di Cloud, simpan langsung ke memori st.kv
     if hasattr(st, "kv"):
         st.kv["db_users_master"] = json.dumps(data_db)
-    # Jika di Local, tulis ke dalam file JSON fisik di hardisk
     else:
         with open(NAMA_FILE_DB, "w") as f:
             json.dump(data_db, f, indent=4)
@@ -89,7 +87,6 @@ def cek_auto_login():
             return "", "", False
     return "", "", False
 
-# Memuat status database dan session state saat aplikasi dijalankan
 st.session_state.db_users = muat_database_kv()
 saved_email, saved_name, is_saved_logged_in = cek_auto_login()
 
@@ -103,8 +100,6 @@ if "is_logged_in" not in st.session_state: st.session_state.is_logged_in = is_sa
 def muat_api_keys():
     """Membaca daftar API Keys dengan pemisahan baris baru (Anti-Gagal)."""
     keys = []
-    
-    # 1. Jalur Utama: Baca langsung per baris dari Environment Variable
     keys_env = os.getenv("GCP_API_KEYS")
     if keys_env:
         for baris in keys_env.strip().split("\n"):
@@ -114,7 +109,6 @@ def muat_api_keys():
         if keys:
             return keys
 
-    # 2. Jalur Cadangan (Fallback Lokal)
     if os.path.exists(NAMA_FILE_KEY):
         with open(NAMA_FILE_KEY, "r") as f:
             for baris in f:
@@ -134,13 +128,11 @@ def ekstraks_dokumen_murni(teks_lengkap):
     tag_mulai = "===Mulai Dokumen==="
     tag_akhir = "===Akhir Dokumen==="
     
-    # Layer 1: Potong berdasarkan Tag Resmi jika ada
     if tag_mulai in teks_lengkap and tag_akhir in teks_lengkap:
         return teks_lengkap.split(tag_mulai)[1].split(tag_akhir)[0].strip()
     elif tag_mulai in teks_lengkap:
         return teks_lengkap.split(tag_mulai)[1].strip()
         
-    # Layer 2 (Fallback): Jika AI lupa mencetak tag, bersihkan otomatis kalimat pengantar manual
     baris_teks = teks_lengkap.split('\n')
     baris_bersih = []
     mulai_rekam = False
@@ -286,7 +278,7 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# JALUR A: STRUKTUR LAYOUT KHUSUS ADMIN (MENGGUNAKAN 3 TAB LENGKAP)
+# JALUR A: STRUKTUR LAYOUT KHUSUS ADMIN (MENGGUNAKAN 3 TAB LENGKAP & INSPEKTUR DATA AMAN)
 # ------------------------------------------------------------------------------
 if email_aktif == EMAIL_ADMIN:
     tab_workspace, tab_settings, tab_admin = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Konfigurasi API", "👑 Dashboard Admin"])
@@ -388,6 +380,9 @@ if email_aktif == EMAIL_ADMIN:
         if not ada_user:
             st.info("Belum ada data pelanggan terdaftar.")
             
+        # ==============================================================================
+        # INSPEKTUR DATA MURNI (HANYA BERADA DI DALAM TAB ADMIN - DIJAMIN AMAN SANGAT)
+        # ==============================================================================
         st.write("")
         st.markdown("---")
         st.markdown("### 🔍 Inspektur Data Mentah (Mode Dev/Admin)")
@@ -395,7 +390,7 @@ if email_aktif == EMAIL_ADMIN:
             st.json(muat_database_kv())
 
 # ------------------------------------------------------------------------------
-# JALUR B: LAYOUT USER BIASA (MURNI DIRECT PAGE TANPA PANGGIL ST.TABS SAMA SEKALI)
+# JALUR B: LAYOUT USER BIASA (MURNI DIRECT PAGE TANPA PANGGIL ST.TABS / INSPEKTUR SAMA SEKALI)
 # ------------------------------------------------------------------------------
 else:
     st.write("")
