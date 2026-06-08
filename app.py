@@ -4,38 +4,37 @@ from google.genai import types
 import random
 import warnings
 
-# Pengaturan Global
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
 
-# --- 1. SISTEM LOGIN USERNAME (STABIL) ---
-# Anda bisa mengganti username & password di bawah atau melalui st.secrets
-USERNAME_VALID = "admin"
-PASSWORD_VALID = "rahasia123"
+# --- 1. SISTEM LOGIN EMAIL WHITELIST ---
+# Daftarkan email yang diizinkan di sini
+EMAIL_WHITELIST = ["handoyoyy1@gmail.com", "partner@email.com"]
 
 def check_login():
     if "is_logged_in" not in st.session_state:
         st.session_state.is_logged_in = False
+        st.session_state.user_email = ""
 
     if not st.session_state.is_logged_in:
         st.markdown("## 🔮 Universal AI Agent Pro")
-        username = st.text_input("Username:")
-        password = st.text_input("Password:", type="password")
+        email_input = st.text_input("Masukkan Email Anda:")
         
         if st.button("Masuk"):
-            if username == USERNAME_VALID and password == PASSWORD_VALID:
+            if email_input.lower() in EMAIL_WHITELIST:
                 st.session_state.is_logged_in = True
+                st.session_state.user_email = email_input
                 st.rerun()
             else:
-                st.error("Username atau Password salah!")
+                st.error("Email tidak terdaftar!")
         st.stop()
 
 check_login()
 
-# --- 2. FITUR LAIN (TETAP ADA) ---
+# --- 2. FITUR UTAMA (Sama seperti sebelumnya) ---
 col_p, col_n = st.columns([4, 1])
 with col_p:
-    st.write("👤 **Mode Admin Aktif**")
+    st.write(f"👤 **{st.session_state.user_email}**")
 with col_n:
     if st.button("Keluar 🚪"):
         st.session_state.is_logged_in = False
@@ -43,7 +42,7 @@ with col_n:
 
 st.markdown("---")
 
-# --- 3. LOGIKA API KEY & ENGINE AI (TIDAK HILANG) ---
+# --- 3. LOGIKA AI ---
 def dapatkan_client():
     if "gemini" in st.secrets and "gcp_api_keys" in st.secrets["gemini"]:
         keys = st.secrets["gemini"]["gcp_api_keys"].strip().split("\n")
