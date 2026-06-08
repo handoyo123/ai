@@ -162,7 +162,7 @@ def buat_file_docx(teks_markdown):
     return buffer
 
 # ==============================================================================
-# 3. INTERFACE LOGIN DENGAN PROTEKSI ADMIN (SANGAT AMAN)
+# 3. INTERFACE LOGIN FORMULIR (MURNI & AMAN TANPA TOMBOL SIMULASI BIAS)
 # ==============================================================================
 st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
 
@@ -170,75 +170,53 @@ if not st.session_state.is_logged_in:
     st.write("")
     with st.container(border=True):
         st.markdown("<h2 style='text-align: center;'>🔮 Universal AI Agent Pro</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Masuk cepat dengan simulasi satu klik</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Silakan masuk menggunakan akun Gmail aktif Anda</p>", unsafe_allow_html=True)
         st.markdown("---")
-        st.write("🌐 **Pilih Opsi Akun Anda:**")
-        logo_google_url = "https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
-        col_g1, col_g2 = st.columns([1, 1])
         
-        with col_g1:
-            st.markdown(f"**<img src='{logo_google_url}' width='18'> Pemilik Aplikasi (Admin)**", unsafe_allow_html=True)
-            # Menggunakan popover agar input PIN tidak merusak tata letak tombol utama
-            with st.popover("handoyoyy1@gmail.com 🔒", use_container_width=True):
-                st.write("🔒 **Verifikasi Keamanan Admin**")
-                pin_input = st.text_input("Masukkan PIN Rahasia Admin:", type="password", key="pin_adm_field")
-                if st.button("Verifikasi & Masuk 👑", use_container_width=True):
-                    if pin_input == PIN_KHUSUS_ADMIN:
+        with st.form("custom_login"):
+            custom_name = st.text_input("Nama Lengkap:", placeholder="Contoh: Andi Wijaya")
+            custom_email = st.text_input("Alamat Gmail:", placeholder="contoh: andi.wijaya@gmail.com")
+            
+            # Field PIN Admin yang bersifat opsional / tersembunyi secara semantik
+            admin_pin = st.text_input("PIN Khusus (Hanya untuk Admin):", type="password", placeholder="Kosongkan jika Anda adalah pelanggan biasa", help="Digunakan untuk memverifikasi kepemilikan dashboard utama.")
+            
+            st.write("")
+            submit_custom = st.form_submit_button("Masuk ke Sistem Aplikasi 🚀", use_container_width=True)
+            
+            if submit_custom:
+                email_clean = custom_email.strip().lower()
+                
+                # JALUR A: DETEKSI LOGIN ADMIN
+                if email_clean == EMAIL_ADMIN:
+                    if admin_pin == PIN_KHUSUS_ADMIN:
                         st.session_state.user_email = EMAIL_ADMIN
-                        st.session_state.user_name = "Miftada Handoyo"
+                        st.session_state.user_name = custom_name.strip() if custom_name.strip() != "" else "Miftada Handoyo"
                         st.session_state.is_logged_in = True
-                        simpan_session_login(EMAIL_ADMIN, "Miftada Handoyo")
-                        st.success("Akses admin diverifikasi!")
+                        simpan_session_login(EMAIL_ADMIN, st.session_state.user_name)
+                        st.success("Akses Admin berhasil diverifikasi!")
                         st.rerun()
                     else:
-                        st.error("PIN Salah! Akses ditolak.")
+                        st.error("Gagal! PIN Rahasia Admin salah atau belum diisi.")
                 
-        with col_g2:
-            st.markdown(f"**<img src='{logo_google_url}' width='18'> User Pelanggan (Tester)**", unsafe_allow_html=True)
-            if st.button("budi.santoso@gmail.com", use_container_width=True):
-                st.session_state.user_email = "budi.santoso@gmail.com"
-                st.session_state.user_name = "Budi Santoso"
-                st.session_state.is_logged_in = True
-                simpan_session_login("budi.santoso@gmail.com", "Budi Santoso")
-                
-                db_sekarang = muat_database_kv()
-                if "budi.santoso@gmail.com" not in db_sekarang:
-                    nominal_acak = 49000 + random.randint(1, 999)
-                    db_sekarang["budi.santoso@gmail.com"] = {
-                        "nama": "Budi Santoso", "status": "Pending Pembayaran",
-                        "nominal_transfer": nominal_acak, "kode_aktivasi": f"PREM-{random.randint(100000, 999999)}"
-                    }
-                    simpan_database_kv(db_sekarang)
-                st.rerun()
-        st.markdown("---")
-        
-        with st.expander("🔐 Gunakan Akun Gmail Lainnya"):
-            with st.form("custom_login"):
-                custom_name = st.text_input("Nama Lengkap Anda:", placeholder="Contoh: Andi Wijaya")
-                custom_email = st.text_input("Alamat Gmail Baru:", placeholder="contoh: andi.wijaya@gmail.com")
-                submit_custom = st.form_submit_button("Masuk dengan Akun Baru 🚀", use_container_width=True)
-                
-                if submit_custom:
-                    email_clean = custom_email.strip().lower()
-                    if email_clean == EMAIL_ADMIN:
-                        st.error("Gagal! Email admin tidak boleh digunakan lewat jalur pendaftaran umum.")
-                    elif "@gmail.com" in email_clean and custom_name.strip() != "":
-                        st.session_state.user_email = email_clean
-                        st.session_state.user_name = custom_name.strip()
-                        st.session_state.is_logged_in = True
-                        simpan_session_login(email_clean, custom_name.strip())
-                        
-                        db_sekarang = muat_database_kv()
-                        if email_clean not in db_sekarang:
-                            nominal_acak = 49000 + random.randint(1, 999)
-                            db_sekarang[email_clean] = {
-                                "nama": custom_name.strip(), "status": "Pending Pembayaran",
-                                "nominal_transfer": nominal_acak, "kode_aktivasi": f"PREM-{random.randint(100000, 999999)}"
-                            }
-                            simpan_database_kv(db_sekarang)
-                        st.rerun()
-                    else:
-                        st.error("Gagal! Pastikan nama terisi dan domain email wajib menggunakan @gmail.com")
+                # JALUR B: DETEKSI LOGIN USER PELANGGAN BIASA
+                elif "@gmail.com" in email_clean and custom_name.strip() != "":
+                    st.session_state.user_email = email_clean
+                    st.session_state.user_name = custom_name.strip()
+                    st.session_state.is_logged_in = True
+                    simpan_session_login(email_clean, custom_name.strip())
+                    
+                    db_sekarang = muat_database_kv()
+                    if email_clean not in db_sekarang:
+                        nominal_acak = 49000 + random.randint(1, 999)
+                        db_sekarang[email_clean] = {
+                            "nama": custom_name.strip(), "status": "Pending Pembayaran",
+                            "nominal_transfer": nominal_acak, "kode_aktivasi": f"PREM-{random.randint(100000, 999999)}"
+                        }
+                        simpan_database_kv(db_sekarang)
+                    st.rerun()
+                else:
+                    st.error("Gagal! Pastikan Nama Lengkap terisi dan format email wajib menggunakan @gmail.com")
+                    
     st.stop()
 
 email_aktif = st.session_state.user_email
