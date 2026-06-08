@@ -101,15 +101,27 @@ if "is_logged_in" not in st.session_state: st.session_state.is_logged_in = is_sa
 # 2. FUNGSI UTAMA ENGINE AI & FILTER EKSTRAKSI DOKUMEN MURNI
 # ==============================================================================
 def muat_api_keys():
-    if not os.path.exists(NAMA_FILE_KEY):
-        with open(NAMA_FILE_KEY, "w") as f:
-            f.write("# Masukkan API Key Gemini Anda di bawah ini (1 key per baris)\n")
+    """Membaca daftar API Keys dengan pemisahan baris baru (Anti-Gagal)."""
     keys = []
-    with open(NAMA_FILE_KEY, "r") as f:
-        for baris in f:
-            baris = baris.strip()
-            if baris and not baris.startswith("#"):
-                keys.append(baris)
+    
+    # 1. Jalur Utama: Baca langsung per baris dari Environment Variable
+    keys_env = os.getenv("GCP_API_KEYS")
+    if keys_env:
+        # Memisahkan text berdasarkan baris baru, lalu membersihkan spasi kosong
+        for baris in keys_env.strip().split("\n"):
+            baris_bersih = baris.strip().replace('"', '').replace(',', '').replace('[', '').replace(']', '')
+            if baris_bersih and not baris_bersih.startswith("#"):
+                keys.append(baris_bersih)
+        if keys:
+            return keys
+
+    # 2. Jalur Cadangan (Fallback Lokal)
+    if os.path.exists(NAMA_FILE_KEY):
+        with open(NAMA_FILE_KEY, "r") as f:
+            for baris in f:
+                baris = baris.strip()
+                if baris and not baris.startswith("#"):
+                    keys.append(baris)
     return keys
 
 def dapatkan_client_acak():
