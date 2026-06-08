@@ -30,7 +30,7 @@ if not st.user.is_logged_in:
         st.warning("🔒 Aplikasi ini diproteksi oleh Google OAuth.")
         # Tombol login memicu fungsi khusus untuk memastikan rerunning
         #st.button("Log in with Google 🌐", on_click=handle_login, type="primary", use_container_width=True)
-        st.button("Log in with Google 🌐", on_click=lambda: st.login("google"), type="primary", use_container_width=True
+        st.button("Log in with Google 🌐", on_click=lambda: st.login("google"), type="primary", use_container_width=True)
     st.stop()
 
 # --- JIKA LOLOS LOGIN ---
