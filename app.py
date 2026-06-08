@@ -12,14 +12,11 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # ==============================================================================
-# 1. DATABASE HYBRID ADAPTER & CONFIG UTAMA
+# 1. DATABASE CONFIG & GOOGLE AUTH ENFORCEMENT
 # ==============================================================================
 EMAIL_ADMIN = "handoyoyy1@gmail.com"
-PIN_KHUSUS_ADMIN = "123456"  # ⚠️ SILAKAN GANTI PIN INI DENGAN RAHASIA ANDA SENDIRI!
-
 NAMA_FILE_KEY = "api_keys.txt"
 NAMA_FILE_DB = "database_users.json"  
-NAMA_FILE_SESSION = "session_login.json"
 
 def muat_database_kv():
     if hasattr(st, "kv"):
@@ -28,7 +25,7 @@ def muat_database_kv():
                 EMAIL_ADMIN: {
                     "nama": "Miftada Handoyo (Admin)",
                     "status": "Aktif", 
-                    "nominal_transfer": 0, 
+                    "nominal_transfer": 0, \
                     "kode_aktivasi": "ADMIN_ACCESS"
                 }
             }
@@ -44,7 +41,7 @@ def muat_database_kv():
                 EMAIL_ADMIN: {
                     "nama": "Miftada Handoyo (Admin)",
                     "status": "Aktif", 
-                    "nominal_transfer": 0, 
+                    "nominal_transfer": 0, \
                     "kode_aktivasi": "ADMIN_ACCESS"
                 }
             }
@@ -64,31 +61,61 @@ def simpan_database_kv(data_db):
         with open(NAMA_FILE_DB, "w") as f:
             json.dump(data_db, f, indent=4)
 
-def simpan_session_login(email, nama):
-    session_data = {"email": email, "nama": nama, "is_logged_in": True}
-    with open(NAMA_FILE_SESSION, "w") as f:
-        json.dump(session_data, f, indent=4)
+# --- PROSES DETEKSI OTOMATIS LOGIN GOOGLE ---
+# Cek apakah fitur deteksi user Streamlit tersedia
+if hasattr(st, "experimental_user"):
+    user_google = st.experimental_user
+elif hasattr(st, "user"):
+    user_google = st.user
+else:
+    user_google = None
 
-def hapus_session_login():
-    if os.path.exists(NAMA_FILE_SESSION):
-        os.remove(NAMA_FILE_SESSION)
+st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
 
-def cek_auto_login():
-    if os.path.exists(NAMA_FILE_SESSION):
-        try:
-            with open(NAMA_FILE_SESSION, "r") as f:
-                data = json.load(f)
-                return data.get("email", ""), data.get("nama", ""), data.get("is_logged_in", False)
-        except:
-            return "", "", False
-    return "", "", False
+# Jika user BELUM login via Google Auth, Streamlit akan memaksa menampilkan tombol "Log in with Google" resmi
+if user_google is None or not user_google.get("is_logged_in", False):
+    st.write("")
+    with st.container(border=True):
+        st.markdown("<h2 style='text-align: center;'>🔮 Universal AI Agent Pro</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Aplikasi ini aman terlindungi oleh Google OAuth</p>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.warning("🔒 Anda wajib masuk menggunakan akun Google Anda untuk mendeteksi hak akses (Admin/Pelanggan).")
+        st.write("Silakan klik tombol **Log in with Google** yang muncul di pojok kanan atas atau tombol otentikasi bawaan server server.")
+        
+        # Perintah ke server Streamlit untuk memicu form login Google resmi bawaan browser
+        st.login()
+    st.stop()
 
+# JIKA LOLOS, AMBIL DATA ASLI DARI GOOGLE BROWSER USER
+email_aktif = user_google.get("email", "").strip().lower()
+nama_aktif = user_google.get("name", "User Pelanggan")
+
+# Sinkronisasi otomatis ke Database KV saat user baru pertama kali masuk via Google
 st.session_state.db_users = muat_database_kv()
-saved_email, saved_name, is_saved_logged_in = cek_auto_login()
+if email_aktif not in st.session_state.db_users:
+    db_sekarang = muat_database_kv()
+    nominal_acak = 49000 + random.randint(1, 999)
+    db_sekarang[email_aktif] = {
+        "nama": nama_aktif, 
+        "status": "Pending Pembayaran",
+        "nominal_transfer": nominal_acak, 
+        "kode_aktivasi": f"PREM-{random.randint(100000, 999999)}"
+    }
+    simpan_database_kv(db_sekarang)
+    st.session_state.db_users = db_sekarang
 
-if "user_email" not in st.session_state: st.session_state.user_email = saved_email
-if "user_name" not in st.session_state: st.session_state.user_name = saved_name
-if "is_logged_in" not in st.session_state: st.session_state.is_logged_in = is_saved_logged_in
+status_user = st.session_state.db_users[email_aktif]["status"]
+
+# Tampilan Header Akun Terdeteksi
+col_profil, col_nav_out = st.columns([4, 1])
+with col_profil:
+    st.write(f"🌐 Terotentikasi Google: **{nama_aktif}** (`{email_aktif}`) | Status: **{status_user}**")
+with col_nav_out:
+    if st.button("Keluar 🚪", use_container_width=True):
+        st.logout()
+        st.rerun()
+
+st.markdown("---")
 
 # ==============================================================================
 # 2. FUNGSI UTAMA ENGINE AI & FILTER DOKUMEN
@@ -141,14 +168,12 @@ def ekstraks_dokumen_murni(teks_lengkap):
             
     if baris_bersih:
         return "\n".join(baris_bersih).strip()
-        
     return teks_lengkap.strip()
 
 def buat_file_docx(teks_markdown):
     doc = Document()
     for baris in teks_markdown.split('\n'):
         baris = baris.replace("===Mulai Dokumen===", "").replace("===Akhir Dokumen===", "")
-        
         if baris.startswith('### '): doc.add_heading(baris.replace('### ', ''), level=3)
         elif baris.startswith('## '): doc.add_heading(baris.replace('## ', ''), level=2)
         elif baris.startswith('# '): doc.add_heading(baris.replace('# ', ''), level=1)
@@ -162,82 +187,7 @@ def buat_file_docx(teks_markdown):
     return buffer
 
 # ==============================================================================
-# 3. INTERFACE LOGIN FORMULIR (MURNI & AMAN TANPA TOMBOL SIMULASI BIAS)
-# ==============================================================================
-st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
-
-if not st.session_state.is_logged_in:
-    st.write("")
-    with st.container(border=True):
-        st.markdown("<h2 style='text-align: center;'>🔮 Universal AI Agent Pro</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Silakan masuk menggunakan akun Gmail aktif Anda</p>", unsafe_allow_html=True)
-        st.markdown("---")
-        
-        with st.form("custom_login"):
-            custom_name = st.text_input("Nama Lengkap:", placeholder="Contoh: Andi Wijaya")
-            custom_email = st.text_input("Alamat Gmail:", placeholder="contoh: andi.wijaya@gmail.com")
-            
-            # Field PIN Admin yang bersifat opsional / tersembunyi secara semantik
-            admin_pin = st.text_input("PIN Khusus (Hanya untuk Admin):", type="password", placeholder="Kosongkan jika Anda adalah pelanggan biasa", help="Digunakan untuk memverifikasi kepemilikan dashboard utama.")
-            
-            st.write("")
-            submit_custom = st.form_submit_button("Masuk ke Sistem Aplikasi 🚀", use_container_width=True)
-            
-            if submit_custom:
-                email_clean = custom_email.strip().lower()
-                
-                # JALUR A: DETEKSI LOGIN ADMIN
-                if email_clean == EMAIL_ADMIN:
-                    if admin_pin == PIN_KHUSUS_ADMIN:
-                        st.session_state.user_email = EMAIL_ADMIN
-                        st.session_state.user_name = custom_name.strip() if custom_name.strip() != "" else "Miftada Handoyo"
-                        st.session_state.is_logged_in = True
-                        simpan_session_login(EMAIL_ADMIN, st.session_state.user_name)
-                        st.success("Akses Admin berhasil diverifikasi!")
-                        st.rerun()
-                    else:
-                        st.error("Gagal! PIN Rahasia Admin salah atau belum diisi.")
-                
-                # JALUR B: DETEKSI LOGIN USER PELANGGAN BIASA
-                elif "@gmail.com" in email_clean and custom_name.strip() != "":
-                    st.session_state.user_email = email_clean
-                    st.session_state.user_name = custom_name.strip()
-                    st.session_state.is_logged_in = True
-                    simpan_session_login(email_clean, custom_name.strip())
-                    
-                    db_sekarang = muat_database_kv()
-                    if email_clean not in db_sekarang:
-                        nominal_acak = 49000 + random.randint(1, 999)
-                        db_sekarang[email_clean] = {
-                            "nama": custom_name.strip(), "status": "Pending Pembayaran",
-                            "nominal_transfer": nominal_acak, "kode_aktivasi": f"PREM-{random.randint(100000, 999999)}"
-                        }
-                        simpan_database_kv(db_sekarang)
-                    st.rerun()
-                else:
-                    st.error("Gagal! Pastikan Nama Lengkap terisi dan format email wajib menggunakan @gmail.com")
-                    
-    st.stop()
-
-email_aktif = st.session_state.user_email
-nama_aktif = st.session_state.user_name
-status_user = st.session_state.db_users[email_aktif]["status"] if email_aktif in st.session_state.db_users else "Pending Pembayaran"
-
-col_profil, col_nav_out = st.columns([4, 1])
-with col_profil:
-    st.write(f"👋 Halo, **{nama_aktif}** (`{email_aktif}`) | Lisensi: **{status_user}**")
-with col_nav_out:
-    if st.button("Keluar 🚪", use_container_width=True):
-        hapus_session_login()
-        st.session_state.is_logged_in = False
-        st.session_state.user_email = ""
-        st.session_state.user_name = ""
-        st.rerun()
-
-st.markdown("---")
-
-# ==============================================================================
-# 4. HALAMAN LOCK SCREEN PEMBAYARAN
+# 3. HALAMAN LOCK SCREEN PEMBAYARAN (OTOMATIS DILEWATI OLEH ADMIN)
 # ==============================================================================
 if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.title("🔒 Akses Layanan Premium Terkunci")
@@ -256,7 +206,7 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.stop()
 
 # ==============================================================================
-# 5. HALAMAN UTAMA WORKSPACE & KONTROL AKSES USER / ADMIN
+# 4. HALAMAN UTAMA WORKSPACE & KONTROL AKSES USER / ADMIN
 # ==============================================================================
 
 if email_aktif == EMAIL_ADMIN:
@@ -283,19 +233,13 @@ if email_aktif == EMAIL_ADMIN:
                             instruksi_kepribadian = (
                                 f"Anda adalah seorang pakar top dunia dan profesional senior di bidang: '{profesi_user}'. "
                                 f"Jawablah tugas dari user dengan kualitas industri tertinggi. "
-                                f"PENTING & WAJIB: Anda harus memisahkan antara bagian teks obrolan sapaan dengan isi dokumen utama. "
                                 f"Bungkus dokumen inti buatan Anda dengan menggunakan penanda teks eksak berikut:\n"
                                 f"===Mulai Dokumen===\n[Isi dokumen/materi utama Anda di sini]\n===Akhir Dokumen===\n"
-                                f"Jangan biarkan ada teks pengantar atau penutup bawaan AI masuk ke dalam tanda pembungkus tersebut."
                             )
-                            
                             respons_final = client.models.generate_content(
                                 model='gemini-2.5-flash',
                                 contents=tugas_user,
-                                config=types.GenerateContentConfig(
-                                    system_instruction=instruksi_kepribadian,
-                                    temperature=0.0
-                                ),
+                                config=types.GenerateContentConfig(system_instruction=instruksi_kepribadian, temperature=0.0),
                             )
                             st.session_state.hasil_ai = respons_final.text
                             st.balloons()
@@ -307,9 +251,7 @@ if email_aktif == EMAIL_ADMIN:
         if st.session_state.hasil_ai != "":
             st.write("")
             st.markdown(f"### 📋 Dokumentasi Pratinjau Sistem: *{profesi_user}*")
-            with st.container(border=True): 
-                st.markdown(st.session_state.hasil_ai)
-                
+            with st.container(border=True): st.markdown(st.session_state.hasil_ai)
             dokumen_murni_unduhan = ekstraks_dokumen_murni(st.session_state.hasil_ai)
             st.write("")
             with st.expander("💾 Opsi Penyimpanan Berkas Bersih", expanded=True):
@@ -383,19 +325,13 @@ else:
                         instruksi_kepribadian = (
                             f"Anda adalah seorang pakar top dunia dan profesional senior di bidang: '{profesi_user}'. "
                             f"Jawablah tugas dari user dengan kualitas industri tertinggi. "
-                            f"PENTING & WAJIB: Anda harus memisahkan antara bagian teks obrolan sapaan dengan isi dokumen utama. "
                             f"Bungkus dokumen inti buatan Anda dengan menggunakan penanda teks eksak berikut:\n"
                             f"===Mulai Dokumen===\n[Isi dokumen/materi utama Anda di sini]\n===Akhir Dokumen===\n"
-                            f"Jangan biarkan ada teks pengantar atau penutup bawaan AI masuk ke dalam tanda pembungkus tersebut."
                         )
-                        
                         respons_final = client.models.generate_content(
                             model='gemini-2.5-flash',
                             contents=tugas_user,
-                            config=types.GenerateContentConfig(
-                                system_instruction=instruksi_kepribadian,
-                                temperature=0.0
-                            ),
+                            config=types.GenerateContentConfig(system_instruction=instruksi_kepribadian, temperature=0.0),
                         )
                         st.session_state.hasil_ai_user = respons_final.text
                         st.balloons()
@@ -407,12 +343,8 @@ else:
     if st.session_state.hasil_ai_user != "":
         st.write("")
         st.markdown(f"### 📋 Dokumentasi Pratinjau Sistem: *{profesi_user}*")
-        
-        with st.container(border=True): 
-            st.markdown(st.session_state.hasil_ai_user)
-            
+        with st.container(border=True): st.markdown(st.session_state.hasil_ai_user)
         dokumen_murni_unduhan = ekstraks_dokumen_murni(st.session_state.hasil_ai_user)
-        
         st.write("")
         with st.expander("💾 Opsi Penyimpanan Berkas Bersih", expanded=True):
             col_word, col_txt = st.columns(2)
