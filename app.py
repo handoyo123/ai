@@ -107,7 +107,6 @@ def muat_api_keys():
     # 1. Jalur Utama: Baca langsung per baris dari Environment Variable
     keys_env = os.getenv("GCP_API_KEYS")
     if keys_env:
-        # Memisahkan text berdasarkan baris baru, lalu membersihkan spasi kosong
         for baris in keys_env.strip().split("\n"):
             baris_bersih = baris.strip().replace('"', '').replace(',', '').replace('[', '').replace(']', '')
             if baris_bersih and not baris_bersih.startswith("#"):
@@ -283,95 +282,79 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
     st.stop()
 
 # ==============================================================================
-# 5. HALAMAN UTAMA WORKSPACE & KONTROL TAB
+# 5. HALAMAN UTAMA WORKSPACE & KONTROL AKSES USER / ADMIN
 # ==============================================================================
+
+# --- STRUKTUR LAYOUT JIKA YANG MASUK ADALAH ADMIN ---
 if email_aktif == EMAIL_ADMIN:
     tab_workspace, tab_settings, tab_admin = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Konfigurasi API", "👑 Dashboard Admin"])
-else:
-    tab_workspace, tab_settings = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Informasi Sistem"])
-
-# --- TAB 1: WORKSPACE ---
-with tab_workspace:
-    st.write("")
-    with st.container(border=True):
-        st.markdown("### ✨ Spesifikasi Kebutuhan Kerja")
-        profesi_user = st.text_input("Tentukan Peran Ahli / Profesi Spesialis Terfokus:", placeholder="Contoh: Senior Database Administrator, Kepala Sekolah, Guru Matematika SD")
-        tugas_user = st.text_area("Deskripsikan Masalah Teknis atau Tugas yang Harus Diselesaikan:", placeholder="Salin perintah pengerjaan berkas di sini...", height=150)
-        
-    st.write("")
-    tombol_proses = st.button("Jalankan Mesin Otomasi Agen ⚡", type="primary", use_container_width=True)
-
-    if "hasil_ai" not in st.session_state: st.session_state.hasil_ai = ""
-
-    if tombol_proses:
-        if profesi_user.strip() != "" and tugas_user.strip() != "":
-            client = dapatkan_client_acak()
-            if client is not None:
-                with st.spinner(f"Mesin Otomasi sedang memproses solusi sebagai {profesi_user}..."):
-                    try:
-                        instruksi_kepribadian = (
-                            f"Anda adalah seorang pakar top dunia dan profesional senior di bidang: '{profesi_user}'. "
-                            f"Jawablah tugas dari user dengan kualitas industri tertinggi. "
-                            f"PENTING & WAJIB: Anda harus memisahkan antara bagian teks obrolan sapaan dengan isi dokumen utama. "
-                            f"Bungkus dokumen inti buatan Anda dengan menggunakan penanda teks eksak berikut:\n"
-                            f"===Mulai Dokumen===\n[Isi dokumen/materi utama Anda di sini]\n===Akhir Dokumen===\n"
-                            f"Jangan biarkan ada teks pengantar atau penutup bawaan AI masuk ke dalam tanda pembungkus tersebut."
-                        )
-                        
-                        respons_final = client.models.generate_content(
-                            model='gemini-2.5-flash',
-                            contents=tugas_user,
-                            config=types.GenerateContentConfig(
-                                system_instruction=instruksi_kepribadian,
-                                temperature=0.0  # Memaksa model patuh 100% pada struktur penanda tag
-                            ),
-                        )
-                        st.session_state.hasil_ai = respons_final.text
-                        st.balloons()
-                    except Exception as e:
-                        st.error(f"Terjadi interupsi jaringan API: {e}")
-        else:
-            st.warning("Kolom Isian Peran Ahli dan Detail Masalah wajib diisi.")
-
-    if st.session_state.hasil_ai != "":
+    
+    # TAB 1: WORKSPACE ADMIN
+    with tab_workspace:
         st.write("")
-        st.markdown(f"### 📋 Dokumentasi Pratinjau Sistem: *{profesi_user}*")
-        
-        with st.container(border=True): 
-            st.markdown(st.session_state.hasil_ai)
+        with st.container(border=True):
+            st.markdown("### ✨ Spesifikasi Kebutuhan Kerja")
+            profesi_user = st.text_input("Tentukan Peran Ahli / Profesi Spesialis Terfokus:", placeholder="Contoh: Senior Database Administrator", key="profesi_adm")
+            tugas_user = st.text_area("Deskripsikan Masalah Teknis atau Tugas yang Harus Diselesaikan:", placeholder="Salin perintah pengerjaan berkas di sini...", height=150, key="tugas_adm")
             
-        # Proses Filter Otomatis
-        dokumen_murni_unduhan = ekstraks_dokumen_murni(st.session_state.hasil_ai)
-        
         st.write("")
-        with st.expander("💾 Opsi Penyimpanan Berkas Bersih (Rapi & Tanpa Penjelasan AI)", expanded=True):
-            col_word, col_txt = st.columns(2)
-            with col_word:
-                st.download_button(
-                    label="📝 Unduh Dokumen Word (.docx) Bersih", 
-                    data=buat_file_docx(dokumen_murni_unduhan), 
-                    file_name=f"Clean_{profesi_user.replace(' ', '_')}.docx", 
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
-                    use_container_width=True
-                )
-            with col_txt:
-                st.download_button(
-                    label="📄 Unduh Teks Mentah (.txt) Bersih", 
-                    data=dokumen_murni_unduhan, 
-                    file_name=f"Clean_{profesi_user.replace(' ', '_')}.txt", 
-                    mime="text/plain", 
-                    use_container_width=True
-                )
+        tombol_proses = st.button("Jalankan Mesin Otomasi Agen ⚡", type="primary", use_container_width=True, key="btn_adm")
 
-# --- TAB 2: SYSTEM CONFIG ---
-with tab_settings:
-    st.write("")
-    st.markdown("### ⚙️ Keseimbangan Token Pool")
-    keys_aktif = [k for k in muat_api_keys() if "Your" not in k and "Disini" not in k]
-    st.metric(label="Jumlah Kunci Cadangan API Aktif", value=len(keys_aktif))
+        if "hasil_ai" not in st.session_state: st.session_state.hasil_ai = ""
 
-# --- TAB 3: CONTROL PANEL ADMIN (TERISOLASI) ---
-if email_aktif == EMAIL_ADMIN:
+        if tombol_proses:
+            if profesi_user.strip() != "" and tugas_user.strip() != "":
+                client = dapatkan_client_acak()
+                if client is not None:
+                    with st.spinner(f"Mesin Otomasi sedang memproses solusi sebagai {profesi_user}..."):
+                        try:
+                            instruksi_kepribadian = (
+                                f"Anda adalah seorang pakar top dunia dan profesional senior di bidang: '{profesi_user}'. "
+                                f"Jawablah tugas dari user dengan kualitas industri tertinggi. "
+                                f"PENTING & WAJIB: Anda harus memisahkan antara bagian teks obrolan sapaan dengan isi dokumen utama. "
+                                f"Bungkus dokumen inti buatan Anda dengan menggunakan penanda teks eksak berikut:\n"
+                                f"===Mulai Dokumen===\n[Isi dokumen/materi utama Anda di sini]\n===Akhir Dokumen===\n"
+                                f"Jangan biarkan ada teks pengantar atau penutup bawaan AI masuk ke dalam tanda pembungkus tersebut."
+                            )
+                            
+                            respons_final = client.models.generate_content(
+                                model='gemini-2.5-flash',
+                                contents=tugas_user,
+                                config=types.GenerateContentConfig(
+                                    system_instruction=instruksi_kepribadian,
+                                    temperature=0.0
+                                ),
+                            )
+                            st.session_state.hasil_ai = respons_final.text
+                            st.balloons()
+                        except Exception as e:
+                            st.error(f"Terjadi interupsi jaringan API: {e}")
+            else:
+                st.warning("Kolom Isian Peran Ahli dan Detail Masalah wajib diisi.")
+
+        if st.session_state.hasil_ai != "":
+            st.write("")
+            st.markdown(f"### 📋 Dokumentasi Pratinjau Sistem: *{profesi_user}*")
+            with st.container(border=True): 
+                st.markdown(st.session_state.hasil_ai)
+                
+            dokumen_murni_unduhan = ekstraks_dokumen_murni(st.session_state.hasil_ai)
+            st.write("")
+            with st.expander("💾 Opsi Penyimpanan Berkas Bersih", expanded=True):
+                col_word, col_txt = st.columns(2)
+                with col_word:
+                    st.download_button(label="📝 Unduh Dokumen Word (.docx) Bersih", data=buat_file_docx(dokumen_murni_unduhan), file_name=f"Clean_{profesi_user.replace(' ', '_')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True, key="dl_word_adm")
+                with col_txt:
+                    st.download_button(label="📄 Unduh Teks Mentah (.txt) Bersih", data=dokumen_murni_unduhan, file_name=f"Clean_{profesi_user.replace(' ', '_')}.txt", mime="text/plain", use_container_width=True, key="dl_txt_adm")
+
+    # TAB 2: SYSTEM CONFIG ADMIN
+    with tab_settings:
+        st.write("")
+        st.markdown("### ⚙️ Keseimbangan Token Pool")
+        keys_aktif = [k for k in muat_api_keys() if "Your" not in k and "Disini" not in k]
+        st.metric(label="Jumlah Kunci Cadangan API Aktif", value=len(keys_aktif))
+
+    # TAB 3: CONTROL PANEL ADMIN
     with tab_admin:
         st.write("")
         st.markdown("### 👑 Panel Manajemen Aktivasi Manual")
@@ -403,15 +386,71 @@ if email_aktif == EMAIL_ADMIN:
         if not ada_user:
             st.info("Belum ada data pelanggan terdaftar.")
             
-        # ==============================================================================
-        # INSPEKTUR DATA MURNI LOKAL / KV STORAGE (OTOMATIS MENYESUAIKAN)
-        # ==============================================================================
         st.write("")
         st.markdown("---")
         st.markdown("### 🔍 Inspektur Data Mentah (Mode Dev/Admin)")
         if st.button("Lihat Seluruh Isi DB Murni 📂", use_container_width=True):
-            data_inspeksi = muat_database_kv()
-            st.json(data_inspeksi)
+            st.json(muat_database_kv())
+
+# --- STRUKTUR LAYOUT MURNI JIKA YANG MASUK ADALAH USER BIASA (TANPA SYSTEM TAB) ---
+else:
+    st.write("")
+    with st.container(border=True):
+        st.markdown("### ✨ Spesifikasi Kebutuhan Kerja")
+        profesi_user = st.text_input("Tentukan Peran Ahli / Profesi Spesialis Terfokus:", placeholder="Contoh: Kepala Sekolah, Guru Matematika SD, Konten Kreator TikTok", key="profesi_usr")
+        tugas_user = st.text_area("Deskripsikan Masalah Teknis atau Tugas yang Harus Diselesaikan:", placeholder="Salin perintah pengerjaan berkas di sini...", height=150, key="tugas_usr")
+        
+    st.write("")
+    tombol_proses = st.button("Jalankan Mesin Otomasi Agen ⚡", type="primary", use_container_width=True, key="btn_usr")
+
+    if "hasil_ai_user" not in st.session_state: st.session_state.hasil_ai_user = ""
+
+    if tombol_proses:
+        if profesi_user.strip() != "" and tugas_user.strip() != "":
+            client = dapatkan_client_acak()
+            if client is not None:
+                with st.spinner(f"Mesin Otomasi sedang memproses solusi..."):
+                    try:
+                        instruksi_kepribadian = (
+                            f"Anda adalah seorang pakar top dunia dan profesional senior di bidang: '{profesi_user}'. "
+                            f"Jawablah tugas dari user dengan kualitas industri tertinggi. "
+                            f"PENTING & WAJIB: Anda harus memisahkan antara bagian teks obrolan sapaan dengan isi dokumen utama. "
+                            f"Bungkus dokumen inti buatan Anda dengan menggunakan penanda teks eksak berikut:\n"
+                            f"===Mulai Dokumen===\n[Isi dokumen/materi utama Anda di sini]\n===Akhir Dokumen===\n"
+                            f"Jangan biarkan ada teks pengantar atau penutup bawaan AI masuk ke dalam tanda pembungkus tersebut."
+                        )
+                        
+                        respons_final = client.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=tugas_user,
+                            config=types.GenerateContentConfig(
+                                system_instruction=instruksi_kepribadian,
+                                temperature=0.0
+                            ),
+                        )
+                        st.session_state.hasil_ai_user = respons_final.text
+                        st.balloons()
+                    except Exception as e:
+                        st.error(f"Terjadi interupsi jaringan API: {e}")
+        else:
+            st.warning("Kolom Isian Peran Ahli dan Detail Masalah wajib diisi.")
+
+    if st.session_state.hasil_ai_user != "":
+        st.write("")
+        st.markdown(f"### 📋 Dokumentasi Pratinjau Sistem: *{profesi_user}*")
+        
+        with st.container(border=True): 
+            st.markdown(st.session_state.hasil_ai_user)
+            
+        dokumen_murni_unduhan = ekstraks_dokumen_murni(st.session_state.hasil_ai_user)
+        
+        st.write("")
+        with st.expander("💾 Opsi Penyimpanan Berkas Bersih", expanded=True):
+            col_word, col_txt = st.columns(2)
+            with col_word:
+                st.download_button(label="📝 Unduh Dokumen Word (.docx) Bersih", data=buat_file_docx(dokumen_murni_unduhan), file_name=f"Clean_{profesi_user.replace(' ', '_')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True, key="dl_word_usr")
+            with col_txt:
+                st.download_button(label="📄 Unduh Teks Mentah (.txt) Bersih", data=dokumen_murni_unduhan, file_name=f"Clean_{profesi_user.replace(' ', '_')}.txt", mime="text/plain", use_container_width=True, key="dl_txt_usr")
 
 st.write("")
 st.markdown("---")
