@@ -12,16 +12,16 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # ==============================================================================
-# 1. DATABASE HYBRID ADAPTER (AUTO-LOCAL JSON & AUTO-CLOUD STREAMLIT KV)
+# 1. DATABASE HYBRID ADAPTER & CONFIG UTAMA
 # ==============================================================================
 EMAIL_ADMIN = "handoyoyy1@gmail.com"
+PIN_KHUSUS_ADMIN = "123456"  # ⚠️ SILAKAN GANTI PIN INI DENGAN RAHASIA ANDA SENDIRI!
+
 NAMA_FILE_KEY = "api_keys.txt"
-NAMA_FILE_DB = "database_users.json"  # Berkas cadangan otomatis khusus di localhost
+NAMA_FILE_DB = "database_users.json"  
 NAMA_FILE_SESSION = "session_login.json"
 
 def muat_database_kv():
-    """Membaca data user dengan deteksi otomatis lingkungan kerja (Local/Cloud)."""
-    # ------ JALUR 1: JIKA RUNNING DI STREAMLIT CLOUD (MENGGUNAKAN ST.KV) ------
     if hasattr(st, "kv"):
         if "db_users_master" not in st.kv:
             data_awal = {
@@ -38,8 +38,6 @@ def muat_database_kv():
             return json.loads(st.kv["db_users_master"])
         except:
             return {EMAIL_ADMIN: {"nama": "Miftada Handoyo (Admin)", "status": "Aktif", "nominal_transfer": 0, "kode_aktivasi": "ADMIN_ACCESS"}}
-            
-    # ------ JALUR 2: JIKA RUNNING DI LOCALHOST (FALLBACK KE FILE BERKAS JSON) ------
     else:
         if not os.path.exists(NAMA_FILE_DB):
             data_awal = {
@@ -60,14 +58,12 @@ def muat_database_kv():
             return {EMAIL_ADMIN: {"nama": "Miftada Handoyo (Admin)", "status": "Aktif", "nominal_transfer": 0, "kode_aktivasi": "ADMIN_ACCESS"}}
 
 def simpan_database_kv(data_db):
-    """Menyimpan pembaruan data user secara adaptif berdasarkan lokasi server."""
     if hasattr(st, "kv"):
         st.kv["db_users_master"] = json.dumps(data_db)
     else:
         with open(NAMA_FILE_DB, "w") as f:
             json.dump(data_db, f, indent=4)
 
-# --- MANAGEMENT SESSION LOGIN ---
 def simpan_session_login(email, nama):
     session_data = {"email": email, "nama": nama, "is_logged_in": True}
     with open(NAMA_FILE_SESSION, "w") as f:
@@ -95,10 +91,9 @@ if "user_name" not in st.session_state: st.session_state.user_name = saved_name
 if "is_logged_in" not in st.session_state: st.session_state.is_logged_in = is_saved_logged_in
 
 # ==============================================================================
-# 2. FUNGSI UTAMA ENGINE AI & FILTER EKSTRAKSI DOKUMEN MURNI
+# 2. FUNGSI UTAMA ENGINE AI & FILTER DOKUMEN
 # ==============================================================================
 def muat_api_keys():
-    """Membaca daftar API Keys dengan pemisahan baris baru (Anti-Gagal)."""
     keys = []
     keys_env = os.getenv("GCP_API_KEYS")
     if keys_env:
@@ -124,7 +119,6 @@ def dapatkan_client_acak():
     return genai.Client(api_key=random.choice(keys_valid))
 
 def ekstraks_dokumen_murni(teks_lengkap):
-    """Fungsi pintar berlapis untuk memotong obrolan AI jika pembungkus bocor."""
     tag_mulai = "===Mulai Dokumen==="
     tag_akhir = "===Akhir Dokumen==="
     
@@ -168,7 +162,7 @@ def buat_file_docx(teks_markdown):
     return buffer
 
 # ==============================================================================
-# 3. INTERFACE LOGIN GOOGLE (ONE-CLICK SIGN IN SIMULATION)
+# 3. INTERFACE LOGIN DENGAN PROTEKSI ADMIN (SANGAT AMAN)
 # ==============================================================================
 st.set_page_config(page_title="Universal AI Agent Pro", page_icon="🔮", layout="centered")
 
@@ -176,20 +170,28 @@ if not st.session_state.is_logged_in:
     st.write("")
     with st.container(border=True):
         st.markdown("<h2 style='text-align: center;'>🔮 Universal AI Agent Pro</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Masuk instan tanpa ribet ketik password</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray;'>Masuk cepat dengan simulasi satu klik</p>", unsafe_allow_html=True)
         st.markdown("---")
-        st.write("🌐 **Pilih Akun Google Anda untuk Melanjutkan:**")
+        st.write("🌐 **Pilih Opsi Akun Anda:**")
         logo_google_url = "https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
         col_g1, col_g2 = st.columns([1, 1])
         
         with col_g1:
-            st.markdown(f"**<img src='{logo_google_url}' width='18'> Miftada Handoyo**", unsafe_allow_html=True)
-            if st.button("handoyoyy1@gmail.com", use_container_width=True):
-                st.session_state.user_email = EMAIL_ADMIN
-                st.session_state.user_name = "Miftada Handoyo"
-                st.session_state.is_logged_in = True
-                simpan_session_login(EMAIL_ADMIN, "Miftada Handoyo")
-                st.rerun()
+            st.markdown(f"**<img src='{logo_google_url}' width='18'> Pemilik Aplikasi (Admin)**", unsafe_allow_html=True)
+            # Menggunakan popover agar input PIN tidak merusak tata letak tombol utama
+            with st.popover("handoyoyy1@gmail.com 🔒", use_container_width=True):
+                st.write("🔒 **Verifikasi Keamanan Admin**")
+                pin_input = st.text_input("Masukkan PIN Rahasia Admin:", type="password", key="pin_adm_field")
+                if st.button("Verifikasi & Masuk 👑", use_container_width=True):
+                    if pin_input == PIN_KHUSUS_ADMIN:
+                        st.session_state.user_email = EMAIL_ADMIN
+                        st.session_state.user_name = "Miftada Handoyo"
+                        st.session_state.is_logged_in = True
+                        simpan_session_login(EMAIL_ADMIN, "Miftada Handoyo")
+                        st.success("Akses admin diverifikasi!")
+                        st.rerun()
+                    else:
+                        st.error("PIN Salah! Akses ditolak.")
                 
         with col_g2:
             st.markdown(f"**<img src='{logo_google_url}' width='18'> User Pelanggan (Tester)**", unsafe_allow_html=True)
@@ -218,7 +220,9 @@ if not st.session_state.is_logged_in:
                 
                 if submit_custom:
                     email_clean = custom_email.strip().lower()
-                    if "@gmail.com" in email_clean and custom_name.strip() != "":
+                    if email_clean == EMAIL_ADMIN:
+                        st.error("Gagal! Email admin tidak boleh digunakan lewat jalur pendaftaran umum.")
+                    elif "@gmail.com" in email_clean and custom_name.strip() != "":
                         st.session_state.user_email = email_clean
                         st.session_state.user_name = custom_name.strip()
                         st.session_state.is_logged_in = True
@@ -277,13 +281,9 @@ if status_user == "Pending Pembayaran" and email_aktif != EMAIL_ADMIN:
 # 5. HALAMAN UTAMA WORKSPACE & KONTROL AKSES USER / ADMIN
 # ==============================================================================
 
-# ------------------------------------------------------------------------------
-# JALUR A: STRUKTUR LAYOUT KHUSUS ADMIN (MENGGUNAKAN 3 TAB LENGKAP & INSPEKTUR DATA AMAN)
-# ------------------------------------------------------------------------------
 if email_aktif == EMAIL_ADMIN:
     tab_workspace, tab_settings, tab_admin = st.tabs(["🚀 Ruang Kerja Agent", "⚙️ Konfigurasi API", "👑 Dashboard Admin"])
     
-    # --- ISI TAB 1: WORKSPACE ADMIN ---
     with tab_workspace:
         st.write("")
         with st.container(border=True):
@@ -341,14 +341,12 @@ if email_aktif == EMAIL_ADMIN:
                 with col_txt:
                     st.download_button(label="📄 Unduh Teks Mentah (.txt) Bersih", data=dokumen_murni_unduhan, file_name=f"Clean_{profesi_user.replace(' ', '_')}.txt", mime="text/plain", use_container_width=True, key="dl_txt_adm")
 
-    # --- ISI TAB 2: SYSTEM CONFIG ADMIN ---
     with tab_settings:
         st.write("")
         st.markdown("### ⚙️ Keseimbangan Token Pool")
         keys_aktif = [k for k in muat_api_keys() if "Your" not in k and "Disini" not in k]
         st.metric(label="Jumlah Kunci Cadangan API Aktif", value=len(keys_aktif))
 
-    # --- ISI TAB 3: CONTROL PANEL ADMIN ---
     with tab_admin:
         st.write("")
         st.markdown("### 👑 Panel Manajemen Aktivasi Manual")
@@ -380,18 +378,12 @@ if email_aktif == EMAIL_ADMIN:
         if not ada_user:
             st.info("Belum ada data pelanggan terdaftar.")
             
-        # ==============================================================================
-        # INSPEKTUR DATA MURNI (HANYA BERADA DI DALAM TAB ADMIN - DIJAMIN AMAN SANGAT)
-        # ==============================================================================
         st.write("")
         st.markdown("---")
         st.markdown("### 🔍 Inspektur Data Mentah (Mode Dev/Admin)")
         if st.button("Lihat Seluruh Isi DB Murni 📂", use_container_width=True, key="insp_db_btn"):
             st.json(muat_database_kv())
 
-# ------------------------------------------------------------------------------
-# JALUR B: LAYOUT USER BIASA (MURNI DIRECT PAGE TANPA PANGGIL ST.TABS / INSPEKTUR SAMA SEKALI)
-# ------------------------------------------------------------------------------
 else:
     st.write("")
     with st.container(border=True):
